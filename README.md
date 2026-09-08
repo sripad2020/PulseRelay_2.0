@@ -15,7 +15,7 @@ A privacy-first, zero-database anonymous workspace built with TCP/IP (WebSockets
 4. **Dual TCP/IP Transport Engine**
    - **LAN Mode**: Runs over Python (`python main.py`) or Node.js (`npm start`) WebSockets across any local network.
    - **Vercel Mode**: Deploys serverlessly using WebRTC Data Channels and Serverless Signaling routes (`/api/signal.js`).
-5. **Karnataka Bank-Inspired Enterprise Theme**
+5. **Inspired Enterprise Theme**
    - Clean, professional white & royal navy blue (`#0a3663`) design system with crimson red (`#c8102e`) accents.
 
 ---
