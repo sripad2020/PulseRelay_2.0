@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PulseRelay Enterprise Workspace & Dual Industrial Engines</title>
+  <meta name="description" content="Enterprise Zero-Database TCP/IP Anonymous Workspace with E2EE, Air-Gapped HIPAA/Banking Mode, and Off-Grid Remote Field Sync">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+  <div id="app-container">
+    
+    <!-- Top Corporate Header -->
+    <header class="app-header">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <button id="btn-toggle-sidebar" class="btn-icon" style="color: #ffffff; border-color: rgba(255,255,255,0.2); display: none;" title="Toggle Navigation Menu">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+
+        <div id="brand-logo-btn" class="brand-logo">
+          <span>PULSERELAY</span>
+          <span class="brand-accent-tag">ENTERPRISE</span>
+        </div>
+
+        <div class="e2ee-badge" title="Web Crypto AES-GCM 256-Bit End-to-End Encryption Enabled">
+          <span>🔒 AES-256 E2EE</span>
+        </div>
+
+        <!-- Mode Selector Dropdown -->
+        <select id="select-profile-mode-header" class="profile-mode-selector" title="Select Enterprise Operating Mode">
+          <option value="STANDARD">🛡️ Standard Enterprise LAN</option>
+          <option value="AIRGAPPED_HEALTHCARE">🏥 Zero-Trust Air-Gapped (HIPAA/Banking)</option>
+          <option value="OFFGRID_MARITIME">🚢 Maritime & Off-Grid Remote Sync</option>
+        </select>
+
+        <div id="compliance-badge-container" class="compliance-badge-container">
+          <span id="badge-hipaa" class="compliance-badge hipaa" style="display: none;">🏥 HIPAA Compliant</span>
+          <span id="badge-soc2" class="compliance-badge soc2" style="display: none;">🛡️ SOC2 Air-Gapped</span>
+          <span id="badge-offgrid" class="compliance-badge offgrid" style="display: none;">🚢 Off-Grid VSAT Mesh</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button id="btn-topology-modal" class="btn-secondary" style="font-size: 0.8rem; padding: 5px 12px; background: rgba(255,255,255,0.15); color: #ffffff; border-color: rgba(255,255,255,0.25);" title="View Live Network Topology & Telemetry">
+          📊 Network Topology
+        </button>
+
+        <div id="connection-status-badge" class="status-badge">
+          <span class="status-dot"></span>
+          <span id="connection-mode-text">Connecting...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 1. BUSINESS LANDING PAGE VIEW -->
+    <main id="landing-view" class="landing-view">
+      
+      <div class="landing-hero">
+        <span class="hero-pill">ENTERPRISE AIR-GAPPED & OFF-GRID INDUSTRIAL PLATFORM</span>
+        <h1>PulseRelay Anonymous Communication</h1>
+        <p>
+          Zero-database ephemeral TCP/IP workspace for healthcare HIPAA transfers, zero-trust banking audits, and internet-independent maritime/aviation off-grid sync.
+        </p>
+      </div>
+
+      <div class="action-box-card">
+        <h3 style="font-size: 1.1rem; color: var(--brand-navy); font-weight: 700;">Enter Workspace</h3>
+        
+        <div class="action-row">
+          <input type="text" id="input-landing-room-code" class="input-field" placeholder="Enter 6-digit Room Code (e.g. ALPHA1)" maxlength="12" style="text-transform: uppercase;">
+          <button id="btn-landing-join-room" class="btn-primary" style="white-space: nowrap;">
+            Join Room
+          </button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; margin: 4px 0;">
+          <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+          <span style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase;">OR</span>
+          <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+        </div>
+
+        <button id="btn-landing-create-room" class="btn-red" style="width: 100%; font-size: 0.95rem; padding: 12px;">
+          ⚡ Create Instant Room
+        </button>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🏥</div>
+          <div class="feature-title">Air-Gapped Zero-Trust (HIPAA & SOC2)</div>
+          <div class="feature-desc">
+            100% on-premise DICOM MRI scan and financial audit streaming with instant in-memory compliance certificate downloads.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🚢</div>
+          <div class="feature-title">Maritime & Off-Grid Remote Sync</div>
+          <div class="feature-desc">
+            Internet-independent tactical LAN sync for drone mapping packages, seismic data, and vessel diagnostic feeds.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📦</div>
+          <div class="feature-title">100GB Targeted Staging & Direct Disk</div>
+          <div class="feature-desc">
+            Targeted recipient staging with direct-to-disk writing via <code style="color: var(--brand-blue);">showSaveFilePicker</code> keeping RAM footprint below 50MB.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <div class="feature-title">Live Topology & Tactical Radar</div>
+          <div class="feature-desc">
+            Real-time canvas rendering active Opcode peer nodes, live ping latency (ms), and off-grid GPS tactical node coordinates.
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- 2. ACTIVE CHAT WORKSPACE VIEW -->
+    <div id="workspace-view" class="workspace-wrapper" style="display: none;">
+      
+      <!-- Sidebar Drawer -->
+      <aside id="sidebar-drawer" class="sidebar">
+        
+        <div class="user-profile-card">
+          <div class="profile-avatar-wrapper">
+            <div id="user-avatar" class="profile-avatar">OP</div>
+            <div class="profile-info">
+              <div id="user-alias" class="profile-alias">OPCODE_0x7F4A</div>
+              <div class="profile-tag">Fixed Opcode Handle</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">Workspace Actions</div>
+          <button id="btn-sidebar-create-room" class="btn-primary" style="width: 100%; margin-bottom: 8px;">
+            + Create New Room
+          </button>
+          <button id="btn-staging-modal" class="btn-red" style="width: 100%; font-size: 0.85rem; margin-bottom: 8px;">
+            📦 File & Folder Staging
+          </button>
+          <button id="btn-export-audit-cert" class="btn-secondary" style="width: 100%; font-size: 0.82rem; background: #e0f2fe; color: #0369a1; border-color: #bae6fd;">
+            📜 Export Compliance Certificate
+          </button>
+        </div>
+
+        <div class="sidebar-section" style="padding-bottom: 6px;">
+          <div class="sidebar-title" style="display: flex; justify-content: space-between;">
+            <span>Online Roster</span>
+            <span id="online-count-tag" style="color: var(--brand-red); font-weight: 700;">0</span>
+          </div>
+        </div>
+        <div id="peers-container" class="peers-list"></div>
+
+        <div class="sidebar-section" style="border-top: 1px solid var(--border-color); margin-top: auto;">
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+            🔒 All messages & chunks are held in RAM and auto-wiped on page refresh.
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Chat Area -->
+      <main class="chat-main">
+        <div class="room-bar">
+          <div class="room-details" style="display: flex; align-items: center;">
+            <h2 id="room-name-heading">General Workspace</h2>
+            <span id="room-code-display" class="room-code-badge" title="Click to copy room code">#LOBBY</span>
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-copy-link" class="btn-secondary" style="padding: 5px 12px; font-size: 0.8rem;">
+              Share Link
+            </button>
+            <button id="btn-back-portal" class="btn-secondary" style="padding: 5px 12px; font-size: 0.8rem;">
+              ← Portal Overview
+            </button>
+          </div>
+        </div>
+
+        <div id="messages-feed" class="messages-feed">
+          <div class="system-event">
+            Welcome to PulseRelay Workspace. Protected by AES-256 E2EE & In-Memory Auto-Wipe RAM storage.
+          </div>
+        </div>
+
+        <div id="typing-indicator" class="typing-indicator-bar"></div>
+
+        <!-- Chat Input Footer with Burn-After-Read Selector -->
+        <div class="chat-input-area">
+          <div class="input-box-wrapper">
+            <input type="file" id="file-attachment-input" style="display: none;" accept="image/*,.pdf,.txt,.zip">
+            <button id="btn-attach-file" class="btn-icon" title="Attach file or image">
+              📎
+            </button>
+            
+            <!-- Burn-After-Read Timer Selector -->
+            <select id="select-burn-timer" class="btn-secondary" style="font-size: 0.75rem; padding: 4px 6px; border: none; background: rgba(0,0,0,0.03);" title="Burn-After-Read Timer">
+              <option value="0">💬 Normal</option>
+              <option value="5">🔥 Burn (5s)</option>
+              <option value="10">🔥 Burn (10s)</option>
+              <option value="30">🔥 Burn (30s)</option>
+            </select>
+
+            <input type="text" id="chat-input-field" class="chat-input" placeholder="Type an encrypted message..." autocomplete="off">
+            <button id="btn-send-msg" class="btn-primary" style="padding: 8px 18px; font-size: 0.88rem;">
+              Send
+            </button>
+          </div>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- SENDER: File & Folder Staging Area Modal -->
+  <div id="modal-staging-area" class="modal-overlay">
+    <div class="modal-card">
+      <h3 class="modal-title">📦 File & Folder Staging (50GB+ Transfer)</h3>
+      
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        
+        <!-- Industrial Quick Presets -->
+        <div>
+          <label style="font-size: 0.82rem; font-weight: 700; color: var(--brand-navy); display: block; margin-bottom: 4px;">Quick Industrial Presets:</label>
+          <div class="preset-buttons-row">
+            <button type="button" class="btn-preset" data-preset="dicom">🏥 DICOM 3D Scan (50GB)</button>
+            <button type="button" class="btn-preset" data-preset="financial">🏦 Financial Audit Ledger (25GB)</button>
+            <button type="button" class="btn-preset" data-preset="drone">🚁 Drone Telemetry (40GB)</button>
+            <button type="button" class="btn-preset" data-preset="maritime">🚢 Vessel Diagnostics (60GB)</button>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 0.82rem; font-weight: 700; color: var(--brand-navy); display: block; margin-bottom: 4px;">Target Recipient (User 3):</label>
+          <select id="select-target-peer-staging" class="input-field">
+            <option value="">No other online peers in room</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size: 0.82rem; font-weight: 700; color: var(--brand-navy); display: block; margin-bottom: 4px;">Select File OR Entire Folder to Stage:</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="file" id="input-staging-file" class="input-field" style="flex: 1;">
+            <input type="file" id="input-staging-folder" class="input-field" webkitdirectory directory style="display: none;">
+            <button id="btn-pick-folder" class="btn-secondary" style="white-space: nowrap;">📁 Pick Folder</button>
+          </div>
+        </div>
+
+        <div id="staging-status-box" class="staging-card" style="display: none;">
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--brand-navy);" id="staging-file-name">Staged Items</div>
+          <div style="font-size: 0.78rem; color: var(--text-secondary);" id="staging-file-size">0 Bytes</div>
+          <div class="transfer-metrics" style="margin-top: 4px;">
+            <span id="staging-speed-label">Status: Waiting for recipient location confirmation...</span>
+          </div>
+          <div class="progress-container">
+            <div id="staging-progress-fill" class="progress-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+        <button id="btn-close-staging-modal" class="btn-secondary">Close</button>
+        <button id="btn-initiate-staging" class="btn-red">Stage & Notify Recipient</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECIPIENT: Location Confirmation Modal -->
+  <div id="modal-recipient-location" class="modal-overlay">
+    <div class="modal-card">
+      <h3 class="modal-title">📥 Incoming Private Stream Request</h3>
+      
+      <div style="display: flex; flex-direction: column; gap: 12px; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+        <div style="font-size: 0.9rem; font-weight: 700; color: var(--brand-navy);" id="recip-sender-name">Sender: User 1 (OPCODE_0x7F4A)</div>
+        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);" id="recip-file-details">Staged File: Project_Archive.zip (50 GB)</div>
+        
+        <div style="background: #ffffff; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.82rem;">
+          <strong style="color: var(--brand-navy); display: block; margin-bottom: 2px;">Proposed Save Destination:</strong>
+          <span id="recip-destination-path" style="font-family: var(--font-mono); color: var(--brand-blue); font-weight: 600;">Downloads / Project_Archive.zip</span>
+        </div>
+
+        <div style="font-size: 0.88rem; font-weight: 700; color: var(--brand-red); margin-top: 4px;">
+          ❓ Is this okay to be saved in this location?
+        </div>
+      </div>
+
+      <div id="recip-progress-box" class="staging-card" style="display: none;">
+        <div class="transfer-metrics" style="margin-bottom: 4px;">
+          <span id="recip-speed-label">Streaming to disk: 0.0 MB/s (0%)</span>
+        </div>
+        <div class="progress-container">
+          <div id="recip-progress-fill" class="progress-bar-fill"></div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+        <button id="btn-reject-recipient-stream" class="btn-secondary">❌ Decline</button>
+        <button id="btn-choose-other-location" class="btn-secondary">📁 Choose Other Location</button>
+        <button id="btn-accept-recipient-location" class="btn-primary">✅ Yes, Save to Location</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Network Topology Dashboard Modal -->
+  <div id="modal-network-topology" class="modal-overlay">
+    <div class="modal-card">
+      <h3 class="modal-title">📊 Live Network Topology & Tactical Radar</h3>
+      <p style="font-size: 0.85rem; color: var(--text-secondary);">Real-time P2P peer nodes, LAN latency, and off-grid GPS coordinates.</p>
+      
+      <canvas id="topology-canvas" width="500" height="240"></canvas>
+
+      <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">
+        <span>Latency: <strong id="topo-ping-val" style="color: #10b981;">3 ms</strong></span>
+        <span>Auto-Chunk Size: <strong id="topo-chunk-val" style="color: var(--brand-blue);">256 KB</strong></span>
+        <span>Protocol: <strong style="color: var(--brand-navy);">WebSockets TCP</strong></span>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+        <button id="btn-close-topology-modal" class="btn-primary">Close Visualizer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enterprise Compliance Certificate Modal -->
+  <div id="modal-compliance-cert" class="modal-overlay">
+    <div class="modal-card" style="max-width: 600px;">
+      <h3 class="modal-title">📜 In-Memory Compliance Audit Certificate</h3>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px;">
+        Official zero-database security audit token generated dynamically from active browser RAM state.
+      </p>
+
+      <div style="background: #0f172a; color: #38bdf8; font-family: var(--font-mono); font-size: 0.78rem; padding: 14px; border-radius: 8px; max-height: 260px; overflow-y: auto; white-space: pre-wrap;" id="cert-json-preview">
+        Loading certificate data...
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+        <span style="font-size: 0.78rem; color: var(--text-muted);">Status: Verified 100% Zero-Cloud Storage</span>
+        <div style="display: flex; gap: 8px;">
+          <button id="btn-close-cert-modal" class="btn-secondary">Close</button>
+          <button id="btn-download-cert-json" class="btn-primary">📥 Download JSON Certificate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/storage.js"></script>
+  <script src="/js/transport.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "lan-vercel-anonymous-chat",
+  "version": "1.0.0",
+  "description": "Anonymous TCP/IP LAN & Vercel WebRTC/WebSocket Chat Application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "chat",
+    "webrtc",
+    "socketio",
+    "lan",
+    "vercel",
+    "anonymous",
+    "localstorage"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
