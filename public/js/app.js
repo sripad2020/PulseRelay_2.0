@@ -44,6 +44,7 @@ class PulseRelayApp {
       this.onlinePeers = users || [];
       this.renderPeersList(users);
       this.updateStagingRecipientDropdown();
+      this.updateChatRecipientDropdown(users);
       this.drawTopologyCanvas();
     });
 
@@ -126,7 +127,8 @@ class PulseRelayApp {
   showLandingPage() {
     document.getElementById('landing-view').style.display = 'flex';
     document.getElementById('workspace-view').style.display = 'none';
-    document.getElementById('btn-toggle-sidebar').style.display = 'none';
+    const btnToggle = document.getElementById('btn-toggle-sidebar');
+    if (btnToggle) btnToggle.style.display = 'none';
     window.location.hash = '';
   }
 
@@ -141,7 +143,8 @@ class PulseRelayApp {
 
     document.getElementById('landing-view').style.display = 'none';
     document.getElementById('workspace-view').style.display = 'flex';
-    document.getElementById('btn-toggle-sidebar').style.display = 'flex';
+    const btnToggle = document.getElementById('btn-toggle-sidebar');
+    if (btnToggle) btnToggle.style.display = 'flex';
 
     document.getElementById('room-name-heading').textContent = `Workspace ${cleanRoomId}`;
     document.getElementById('room-code-display').textContent = `#${cleanRoomId}`;
@@ -323,9 +326,12 @@ class PulseRelayApp {
     });
 
     const sidebar = document.getElementById('sidebar-drawer');
-    document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
-      sidebar.classList.toggle('open');
-    });
+    const btnToggle = document.getElementById('btn-toggle-sidebar');
+    if (btnToggle) {
+      btnToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+      });
+    }
   }
 
   updateProfileMode(modeKey) {
@@ -841,6 +847,28 @@ class PulseRelayApp {
     });
   }
 
+  updateChatRecipientDropdown(users) {
+    const select = document.getElementById('select-chat-recipient');
+    if (!select) return;
+    const currentVal = select.value;
+
+    select.innerHTML = '<option value="ALL">🌐 Everyone</option>';
+
+    const otherPeers = (users || []).filter(p => p && p.id && p.id !== this.user.id);
+    otherPeers.forEach(peer => {
+      const opt = document.createElement('option');
+      opt.value = peer.id;
+      opt.textContent = `🔒 Direct: ${peer.alias}`;
+      select.appendChild(opt);
+    });
+
+    if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+      select.value = currentVal;
+    } else {
+      select.value = 'ALL';
+    }
+  }
+
   formatBytes(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -872,12 +900,22 @@ class PulseRelayApp {
   async sendChatMessage(text, attachmentData = null, isImage = false, burnSeconds = 0) {
     const msgId = 'msg_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
     
+    const recipientSelect = document.getElementById('select-chat-recipient');
+    const targetPeerId = (recipientSelect && recipientSelect.value !== 'ALL') ? recipientSelect.value : null;
+    let targetAlias = null;
+    if (targetPeerId) {
+      const targetPeer = (this.onlinePeers || []).find(p => p && p.id === targetPeerId);
+      if (targetPeer) targetAlias = targetPeer.alias;
+    }
+
     // Encrypt payload with Web Crypto / Pure-JS E2EE Engine
     const encryptedObj = await window.chatStorage.encryptPayload(text, this.currentRoomId);
 
     const wireMsgPayload = {
       id: msgId,
       sender: this.user,
+      targetPeerId,
+      targetAlias,
       text: '🔒 [Encrypted Message]',
       encryptedObj,
       attachmentData,
@@ -899,6 +937,13 @@ class PulseRelayApp {
 
   appendMessageToFeed(msg) {
     const feed = document.getElementById('messages-feed');
+    if (!feed) return;
+
+    // Bystander isolation: if targeted message is not for current user or sent by current user, ignore
+    if (msg.targetPeerId && msg.targetPeerId !== this.user.id && msg.sender.id !== this.user.id) {
+      return;
+    }
+
     const isSelf = msg.sender.id === this.user.id;
 
     const card = document.createElement('div');
@@ -916,9 +961,18 @@ class PulseRelayApp {
       }
     }
 
+    let directTag = '';
+    if (msg.targetPeerId) {
+      const label = isSelf ? `(Direct to ${this.escapeHtml(msg.targetAlias || 'Peer')})` : '(Private Direct Message)';
+      directTag = `<span style="font-size: 0.72rem; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px;">🔒 ${label}</span>`;
+    }
+
     card.innerHTML = `
       <div class="message-meta">
-        <span style="font-weight: 700; font-family: var(--font-mono); color: ${isSelf ? 'var(--brand-navy)' : 'var(--brand-blue)'};">${msg.sender.alias}</span>
+        <span style="font-weight: 700; font-family: var(--font-mono); color: ${isSelf ? 'var(--brand-navy)' : 'var(--brand-blue)'};">
+          ${this.escapeHtml(msg.sender.alias)}
+          ${directTag}
+        </span>
         <span>${timeStr}</span>
       </div>
       <div class="message-bubble">
@@ -965,9 +1019,9 @@ class PulseRelayApp {
       const isSelf = peer.id === this.user.id;
 
       item.innerHTML = `
-        <div class="peer-avatar">${peer.initial || 'OP'}</div>
+        <div class="peer-avatar">${this.escapeHtml(peer.initial || 'OP')}</div>
         <div class="peer-name">
-          ${peer.alias} ${isSelf ? '<span style="font-size: 0.72rem; color: var(--brand-red); font-weight: 600;">(You)</span>' : ''}
+          ${this.escapeHtml(peer.alias)} ${isSelf ? '<span style="font-size: 0.72rem; color: var(--brand-red); font-weight: 600;">(You)</span>' : ''}
         </div>
       `;
       container.appendChild(item);

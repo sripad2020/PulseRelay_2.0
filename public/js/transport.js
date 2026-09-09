@@ -2,23 +2,24 @@
  * PulseRelay Advanced Transport Engine
  * Dual-Transport:
  * 1. Native High-Speed TCP WebSockets (Local LAN - Port 3001)
- * 2. Vercel Global Ephemeral Mesh Relay + WebRTC STUN/TURN Engine
- * Zero Errors, Cross-Region Multi-User Discovery, Universal NAT Traversal.
+ * 2. Room-Host WebRTC P2P Signaling Engine (Vercel / Global Mesh)
+ * Zero Errors, Instant Peer Discovery, Direct Browser-to-Browser DataChannels.
  */
 
 class AdvancedTransportEngine {
   constructor() {
     this.mode = 'native_ws';
     this.ws = null;
-    this.globalRelayWs = null;
-    this.peerConnections = {}; // { [peerId]: RTCPeerConnection }
+    this.peerInstance = null;
+    this.isRoomHost = false;
+    this.hostConnection = null;
+    this.peerConnections = {}; // { [peerId]: PeerConnection / RTCConnection }
     this.dataChannels = {};    // { [peerId]: RTCDataChannel }
     this.eventListeners = {};
     this.currentRoomId = null;
     this.currentUser = null;
     this.pingTimer = null;
     this.reconnectTimer = null;
-    this.vercelPollTimer = null;
     this.activeRosterMap = new Map();
 
     // STUN & TURN ICE Servers for 100% Universal Cross-Network NAT Traversal
@@ -82,7 +83,7 @@ class AdvancedTransportEngine {
     }
 
     if (window.location.hostname.includes('vercel.app')) {
-      this.startVercelServerlessSignaling();
+      this.startPeerJSRoomHostEngine();
     } else if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       this.connectWebSocket();
     } else {
@@ -130,6 +131,7 @@ class AdvancedTransportEngine {
               this.networkPingMs = Date.now() - this.lastPingStart;
               this.emitLocal('network-telemetry', { pingMs: this.networkPingMs });
             }
+            this.activeRosterMap.clear();
             (users || []).forEach(u => {
               if (u && u.id) this.activeRosterMap.set(u.id, u);
             });
@@ -161,8 +163,8 @@ class AdvancedTransportEngine {
       };
 
       this.ws.onerror = (err) => {
-        console.warn('WebSocket connection failed, switching to Vercel Global Mesh Signaling mode...');
-        this.startVercelServerlessSignaling();
+        console.warn('WebSocket connection failed, switching to Room Host WebRTC P2P mode...');
+        this.startPeerJSRoomHostEngine();
       };
 
       this.ws.onclose = () => {
@@ -177,233 +179,235 @@ class AdvancedTransportEngine {
         }
       };
     } catch (e) {
-      console.warn('Failed to create WebSocket, falling back to Vercel Global Mesh Signaling:', e);
-      this.startVercelServerlessSignaling();
+      console.warn('Failed to create WebSocket, falling back to Room Host WebRTC P2P:', e);
+      this.startPeerJSRoomHostEngine();
     }
   }
 
   /**
-   * Vercel Global Ephemeral Mesh Relay Engine
+   * Room-Host WebRTC P2P Engine for Vercel / Cloud Deployments
    */
-  startVercelServerlessSignaling() {
-    this.mode = 'vercel_webrtc';
-    console.log('🌐 Operating on Vercel Global Ephemeral Mesh Relay Engine');
-    this.emitLocal('connection-status', { connected: true, mode: 'Vercel Global Mesh (E2EE)' });
+  startPeerJSRoomHostEngine() {
+    this.mode = 'peerjs_p2p';
+    console.log('🌐 Operating on Room Host WebRTC Direct P2P Engine');
+    this.emitLocal('connection-status', { connected: true, mode: 'Vercel WebRTC Direct P2P' });
 
-    if (this.globalRelayWs) {
-      try { this.globalRelayWs.close(); } catch (e) {}
+    if (this.peerInstance) {
+      try { this.peerInstance.destroy(); } catch (e) {}
     }
 
-    const relayUrls = [
-      'wss://relay.damus.io',
-      'wss://nos.lol',
-      'wss://relay.nostr.band'
-    ];
+    if (!window.Peer || !this.currentUser || !this.currentRoomId) return;
 
-    const connectRelay = (urlIndex = 0) => {
-      if (urlIndex >= relayUrls.length) {
-        this.fallbackServerlessPolling();
-        return;
-      }
+    const hostPeerId = `pulserelay_${this.currentRoomId}_HOST`;
+    const clientPeerId = `pulserelay_${this.currentRoomId}_PEER_${this.currentUser.id.replace(/[^a-zA-Z0-9]/g, '')}`;
 
-      try {
-        const ws = new WebSocket(relayUrls[urlIndex]);
-        this.globalRelayWs = ws;
-
-        ws.onopen = () => {
-          console.log('⚡ Connected to Global Ephemeral Signal Relay:', relayUrls[urlIndex]);
-          
-          // Subscribe to current room events
-          const subId = 'sub_' + Math.random().toString(36).substring(2, 9);
-          ws.send(JSON.stringify([
-            'REQ',
-            subId,
-            { kinds: [1], '#r': [this.currentRoomId] }
-          ]));
-
-          // Broadcast presence arrival to room
-          this.sendGlobalRelayEvent('user-joined', { user: this.currentUser });
-        };
-
-        ws.onmessage = (evt) => {
-          try {
-            const msgData = JSON.parse(evt.data);
-            if (msgData[0] === 'EVENT' && msgData[2] && msgData[2].content) {
-              const payload = JSON.parse(msgData[2].content);
-              if (payload.senderId !== this.currentUser?.id) {
-                this.handleGlobalRelayMessage(payload);
-              }
-            }
-          } catch (e) {}
-        };
-
-        ws.onerror = () => {
-          connectRelay(urlIndex + 1);
-        };
-      } catch (e) {
-        connectRelay(urlIndex + 1);
-      }
-    };
-
-    connectRelay(0);
-    this.fallbackServerlessPolling();
-  }
-
-  sendGlobalRelayEvent(type, data) {
-    if (!this.globalRelayWs || this.globalRelayWs.readyState !== WebSocket.OPEN) return;
     try {
-      const payload = {
-        type,
-        senderId: this.currentUser?.id,
-        user: this.currentUser,
-        data,
-        timestamp: Date.now()
-      };
-      
-      const event = [
-        'EVENT',
-        {
-          kind: 1,
-          created_at: Math.floor(Date.now() / 1000),
-          tags: [['r', this.currentRoomId]],
-          content: JSON.stringify(payload)
-        }
-      ];
+      const hostPeer = new Peer(hostPeerId, { config: this.rtcConfig, debug: 0 });
+      this.peerInstance = hostPeer;
 
-      this.globalRelayWs.send(JSON.stringify(event));
-    } catch (e) {}
+      hostPeer.on('open', (id) => {
+        console.log('👑 Registered as Room Host:', id);
+        this.isRoomHost = true;
+        this.activeRosterMap.clear();
+        this.activeRosterMap.set(this.currentUser.id, this.currentUser);
+        this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
+      });
+
+      hostPeer.on('connection', (conn) => {
+        this.handleIncomingHostConnection(conn);
+      });
+
+      hostPeer.on('error', (err) => {
+        if (err.type === 'unavailable-id') {
+          this.connectAsRoomClient(clientPeerId, hostPeerId);
+        } else {
+          console.warn('PeerJS Host note:', err);
+          this.connectAsRoomClient(clientPeerId, hostPeerId);
+        }
+      });
+    } catch (e) {
+      this.connectAsRoomClient(clientPeerId, hostPeerId);
+    }
   }
 
-  handleGlobalRelayMessage(payload) {
-    const { type, user, data } = payload;
-    if (user && user.id) {
-      this.activeRosterMap.set(user.id, user);
-      this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
+  connectAsRoomClient(clientPeerId, hostPeerId) {
+    if (this.peerInstance) {
+      try { this.peerInstance.destroy(); } catch (e) {}
     }
 
-    if (type === 'user-joined') {
-      if (user && user.id) {
-        this.activeRosterMap.set(user.id, user);
-        this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
+    try {
+      const clientPeer = new Peer(clientPeerId, { config: this.rtcConfig, debug: 0 });
+      this.peerInstance = clientPeer;
+      this.isRoomHost = false;
+
+      clientPeer.on('open', (id) => {
+        console.log('📱 Registered as Room Peer, connecting to Host:', hostPeerId);
+        const conn = clientPeer.connect(hostPeerId, { reliable: true });
+        this.hostConnection = conn;
+
+        conn.on('open', () => {
+          console.log('⚡ Connected directly to Room Host!');
+          conn.send(JSON.stringify({ type: 'join-room', user: this.currentUser }));
+        });
+
+        conn.on('data', (dataStr) => {
+          try {
+            const msg = JSON.parse(dataStr);
+            this.handleP2PMessage(msg);
+          } catch (e) {
+            console.warn('P2P Data parse error:', e);
+          }
+        });
+      });
+
+      clientPeer.on('connection', (conn) => {
+        this.setupDirectPeerConnection(conn);
+      });
+    } catch (e) {
+      console.warn('Client peer setup error:', e);
+    }
+  }
+
+  handleIncomingHostConnection(conn) {
+    conn.on('open', () => {
+      console.log('⚡ Incoming peer connection to Host');
+    });
+
+    conn.on('close', () => {
+      let leftUser = null;
+      for (const [pid, c] of Object.entries(this.peerConnections)) {
+        if (c === conn) {
+          delete this.peerConnections[pid];
+          leftUser = this.activeRosterMap.get(pid);
+          this.activeRosterMap.delete(pid);
+          break;
+        }
       }
+      if (leftUser) {
+        const fullRoster = Array.from(this.activeRosterMap.values());
+        this.emitLocal('room-users', fullRoster);
+        this.emitLocal('user-left', leftUser);
+        Object.values(this.peerConnections).forEach(c => {
+          if (c && c.open) {
+            try {
+              c.send(JSON.stringify({ type: 'user-left', user: leftUser }));
+              c.send(JSON.stringify({ type: 'room-users', users: fullRoster }));
+            } catch (e) {}
+          }
+        });
+      }
+    });
+
+    conn.on('data', (dataStr) => {
+      try {
+        const msg = JSON.parse(dataStr);
+        if (msg.type === 'join-room') {
+          const newUser = msg.user;
+          if (newUser && newUser.id) {
+            this.activeRosterMap.set(newUser.id, newUser);
+            this.peerConnections[newUser.id] = conn;
+
+            const fullRoster = Array.from(this.activeRosterMap.values());
+            this.emitLocal('room-users', fullRoster);
+
+            conn.send(JSON.stringify({ type: 'room-users', users: fullRoster }));
+
+            Object.entries(this.peerConnections).forEach(([pid, c]) => {
+              if (pid !== newUser.id && c && c.open) {
+                try {
+                  c.send(JSON.stringify({ type: 'user-joined', user: newUser }));
+                  c.send(JSON.stringify({ type: 'room-users', users: fullRoster }));
+                } catch (e) {}
+              }
+            });
+          }
+        } else {
+          this.handleP2PMessage(msg);
+          if (this.isRoomHost) {
+            const targetPeerId = (msg.data && msg.data.targetPeerId) || msg.targetPeerId;
+            if (targetPeerId) {
+              const targetConn = this.peerConnections[targetPeerId];
+              if (targetConn && targetConn.open && targetConn !== conn) {
+                try { targetConn.send(dataStr); } catch (e) {}
+              }
+            } else {
+              Object.entries(this.peerConnections).forEach(([pid, c]) => {
+                if (c && c.open && c !== conn) {
+                  try { c.send(dataStr); } catch (e) {}
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Host connection data parse error:', e);
+      }
+    });
+  }
+
+  setupDirectPeerConnection(conn) {
+    conn.on('data', (dataStr) => {
+      try {
+        const msg = JSON.parse(dataStr);
+        this.handleP2PMessage(msg);
+      } catch (e) {}
+    });
+  }
+
+  handleP2PMessage(msg) {
+    const { type, data, sender, users, user } = msg;
+
+    if (type === 'room-users') {
+      this.activeRosterMap.clear();
+      (users || []).forEach(u => {
+        if (u && u.id) this.activeRosterMap.set(u.id, u);
+      });
+      this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
+    } else if (type === 'user-joined') {
+      if (user && user.id) this.activeRosterMap.set(user.id, user);
+      this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
       this.emitLocal('user-joined', user);
-      // Respond with self presence so new joiner learns about us immediately
-      this.sendGlobalRelayEvent('presence-ack', { user: this.currentUser });
-    } else if (type === 'presence-ack') {
-      if (user && user.id) {
-        this.activeRosterMap.set(user.id, user);
-        this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
-      }
+    } else if (type === 'user-left') {
+      if (user && user.id) this.activeRosterMap.delete(user.id);
+      this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
+      this.emitLocal('user-left', user);
     } else if (type === 'chat-message') {
-      this.emitLocal('chat-message', data);
+      if (data && data.targetPeerId) {
+        if (data.targetPeerId === this.currentUser?.id || data.sender?.id === this.currentUser?.id) {
+          this.emitLocal('chat-message', data);
+        }
+      } else {
+        this.emitLocal('chat-message', data);
+      }
     } else if (type === 'typing-status') {
       this.emitLocal('typing-status', data);
     } else if (type === 'targeted-file-init') {
-      this.emitLocal('targeted-file-init', { meta: data, sender: user });
+      this.emitLocal('targeted-file-init', { meta: data, sender });
     } else if (type === 'targeted-file-chunk') {
-      this.emitLocal('targeted-file-chunk', { chunk: data, sender: user });
+      this.emitLocal('targeted-file-chunk', { chunk: data, sender });
     } else if (type === 'targeted-file-ack') {
-      this.emitLocal('targeted-file-ack', { ack: data, sender: user });
+      this.emitLocal('targeted-file-ack', { ack: data, sender });
     } else if (type === 'burn-message-purge') {
       this.emitLocal('burn-message-purge', data);
     }
   }
 
-  fallbackServerlessPolling() {
-    if (this.vercelPollTimer) clearInterval(this.vercelPollTimer);
-
-    const pollVercel = async () => {
-      if (!this.currentRoomId || !this.currentUser) return;
-
-      try {
-        const res = await fetch('/api/signal', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'poll',
-            roomId: this.currentRoomId,
-            senderPeerId: this.currentUser.id,
-            user: this.currentUser
-          })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const peers = data.peers || [];
-
-          (peers || []).forEach(p => {
-            if (p && p.id) this.activeRosterMap.set(p.id, p);
-          });
-          this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
-
-          const pendingSignals = data.signals || [];
-          for (const item of pendingSignals) {
-            this.handleVercelSignal(item);
-          }
+  sendP2PPayload(payload) {
+    const jsonStr = JSON.stringify(payload);
+    if (this.isRoomHost) {
+      Object.values(this.peerConnections).forEach(c => {
+        if (c && c.open) {
+          try { c.send(jsonStr); } catch (e) {}
         }
-      } catch (e) {
-        console.warn('Vercel polling error:', e);
-      }
-    };
-
-    pollVercel();
-    this.vercelPollTimer = setInterval(pollVercel, 1500);
-  }
-
-  async sendVercelSignal(targetPeerId, signal) {
-    if (!this.currentRoomId || !this.currentUser) return;
-    try {
-      await fetch('/api/signal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'send-signal',
-          roomId: this.currentRoomId,
-          senderPeerId: this.currentUser.id,
-          targetPeerId,
-          signal,
-          user: this.currentUser
-        })
       });
-    } catch (e) {
-      console.warn('Failed to send Vercel signal:', e);
-    }
-  }
-
-  async handleVercelSignal(item) {
-    const { senderPeerId, signal } = item;
-    if (!signal) return;
-
-    if (signal.user && signal.user.id) {
-      this.activeRosterMap.set(signal.user.id, signal.user);
-      this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
-    }
-
-    if (signal.type === 'chat-message') {
-      this.emitLocal('chat-message', signal.data);
-    } else if (signal.type === 'typing-status') {
-      this.emitLocal('typing-status', signal.data);
-    } else if (signal.type === 'targeted-file-init') {
-      this.emitLocal('targeted-file-init', { meta: signal.data, sender: signal.sender });
-    } else if (signal.type === 'targeted-file-chunk') {
-      this.emitLocal('targeted-file-chunk', { chunk: signal.data, sender: signal.sender });
-    } else if (signal.type === 'targeted-file-ack') {
-      this.emitLocal('targeted-file-ack', { ack: signal.data, sender: signal.sender });
-    } else if (signal.type === 'burn-message-purge') {
-      this.emitLocal('burn-message-purge', signal.data);
-    } else if (signal.type === 'user-joined') {
-      if (signal.user && signal.user.id) {
-        this.activeRosterMap.set(signal.user.id, signal.user);
-        this.emitLocal('room-users', Array.from(this.activeRosterMap.values()));
-      }
-      this.emitLocal('user-joined', signal.user || { alias: senderPeerId });
+    } else if (this.hostConnection && this.hostConnection.open) {
+      try { this.hostConnection.send(jsonStr); } catch (e) {}
     }
   }
 
   sendWsEvent(event, data) {
-    if (this.mode === 'vercel_webrtc') {
-      this.sendGlobalRelayEvent(event, data);
-      this.sendVercelSignal('BROADCAST', { type: event, data });
+    if (this.mode === 'peerjs_p2p') {
+      this.sendP2PPayload({ type: event, data, sender: this.currentUser });
       return;
     }
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -420,36 +424,32 @@ class AdvancedTransportEngine {
   }
 
   sendTargetedFileInit(targetPeerId, transferMeta) {
-    if (this.mode === 'vercel_webrtc') {
-      this.sendGlobalRelayEvent('targeted-file-init', transferMeta);
-      this.sendVercelSignal(targetPeerId, { type: 'targeted-file-init', data: transferMeta, sender: this.currentUser });
+    if (this.mode === 'peerjs_p2p') {
+      this.sendP2PPayload({ type: 'targeted-file-init', data: transferMeta, sender: this.currentUser, targetPeerId });
       return;
     }
     this.sendWsEvent('targeted-file-init', { targetPeerId, ...transferMeta });
   }
 
   sendTargetedFileChunk(targetPeerId, chunkMeta) {
-    if (this.mode === 'vercel_webrtc') {
-      this.sendGlobalRelayEvent('targeted-file-chunk', chunkMeta);
-      this.sendVercelSignal(targetPeerId, { type: 'targeted-file-chunk', data: chunkMeta, sender: this.currentUser });
+    if (this.mode === 'peerjs_p2p') {
+      this.sendP2PPayload({ type: 'targeted-file-chunk', data: chunkMeta, sender: this.currentUser, targetPeerId });
       return;
     }
     this.sendWsEvent('targeted-file-chunk', { targetPeerId, ...chunkMeta });
   }
 
   sendTargetedFileAck(targetPeerId, ackMeta) {
-    if (this.mode === 'vercel_webrtc') {
-      this.sendGlobalRelayEvent('targeted-file-ack', ackMeta);
-      this.sendVercelSignal(targetPeerId, { type: 'targeted-file-ack', data: ackMeta, sender: this.currentUser });
+    if (this.mode === 'peerjs_p2p') {
+      this.sendP2PPayload({ type: 'targeted-file-ack', data: ackMeta, sender: this.currentUser, targetPeerId });
       return;
     }
     this.sendWsEvent('targeted-file-ack', { targetPeerId, ...ackMeta });
   }
 
   sendBurnMessagePurge(messageId) {
-    if (this.mode === 'vercel_webrtc') {
-      this.sendGlobalRelayEvent('burn-message-purge', { messageId });
-      this.sendVercelSignal('BROADCAST', { type: 'burn-message-purge', data: { messageId } });
+    if (this.mode === 'peerjs_p2p') {
+      this.sendP2PPayload({ type: 'burn-message-purge', data: { messageId } });
       return;
     }
     this.sendWsEvent('burn-message-purge', { messageId });

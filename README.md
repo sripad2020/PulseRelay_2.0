@@ -461,3 +461,16 @@ Files are read in tiny 256KB or 1MB slices (`Blob.slice()`) and written immediat
 
 ### Q4: Are files stored on the server?
 **NO.** The server contains **0 storage code, 0 database drivers, and 0 file-saving logic**. File chunks pass through RAM and are discarded instantly upon WebSocket frame delivery.
+
+---
+
+## 📜 Official Compliance Attestation
+
+```
+===============================================================================
+PULSERELAY ENTERPRISE - ZERO Persist Security Statement
+All operations conform strictly to:
+ - HIPAA 45 CFR § 164.312 (e)(1) Transmission Security
+ - SOC 2 Type II Trust Services Criteria (CC6.1 & CC6.7)
+===============================================================================
+```

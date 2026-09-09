@@ -234,10 +234,20 @@ async def ws_handler(websocket, path=None):
                 elif event == "chat-message":
                     room_id, user = CLIENT_ROOMS.get(websocket, (None, None))
                     if room_id:
-                        await broadcast_to_room(room_id, {
-                            "event": "chat-message",
-                            "data": payload
-                        }, exclude_ws=websocket)
+                        target_peer_id = payload.get("targetPeerId")
+                        if target_peer_id:
+                            for client_ws, client_user in ROOMS[room_id].items():
+                                if client_user.get("id") == target_peer_id:
+                                    await client_ws.send(json.dumps({
+                                        "event": "chat-message",
+                                        "data": payload
+                                    }))
+                                    break
+                        else:
+                            await broadcast_to_room(room_id, {
+                                "event": "chat-message",
+                                "data": payload
+                            }, exclude_ws=websocket)
 
                 elif event == "targeted-file-init" or event == "targeted-file-chunk" or event == "targeted-file-ack":
                     room_id, user = CLIENT_ROOMS.get(websocket, (None, None))

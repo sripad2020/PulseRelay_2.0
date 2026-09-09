@@ -16,13 +16,8 @@
     <!-- Top Corporate Header -->
     <header class="app-header">
       <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <button id="btn-toggle-sidebar" class="btn-icon" style="color: #ffffff; border-color: rgba(255,255,255,0.2); display: none;" title="Toggle Navigation Menu">
-          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-        </button>
-
         <div id="brand-logo-btn" class="brand-logo">
           <span>PULSERELAY</span>
-          <span class="brand-accent-tag">ENTERPRISE</span>
         </div>
 
         <div class="e2ee-badge" title="Web Crypto AES-GCM 256-Bit End-to-End Encryption Enabled">
@@ -201,6 +196,11 @@
               📎
             </button>
             
+            <!-- Recipient Target Selector (Broadcast vs Specific Peer) -->
+            <select id="select-chat-recipient" class="btn-secondary" style="font-size: 0.75rem; padding: 4px 6px; border: none; background: rgba(0,0,0,0.03); max-width: 140px;" title="Select Message Recipient (Broadcast or Specific Peer)">
+              <option value="ALL">🌐 Everyone</option>
+            </select>
+
             <!-- Burn-After-Read Timer Selector -->
             <select id="select-burn-timer" class="btn-secondary" style="font-size: 0.75rem; padding: 4px 6px; border: none; background: rgba(0,0,0,0.03);" title="Burn-After-Read Timer">
               <option value="0">💬 Normal</option>

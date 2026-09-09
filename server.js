@@ -83,7 +83,14 @@ io.on('connection', (socket) => {
   // Relay chat message to room peers
   socket.on('chat-message', (msgData) => {
     if (!currentRoom) return;
-    socket.to(currentRoom).emit('chat-message', msgData);
+    if (msgData && msgData.targetPeerId) {
+      const targetUser = Object.values(rooms[currentRoom] || {}).find(u => u.id === msgData.targetPeerId);
+      if (targetUser && targetUser.socketId) {
+        io.to(targetUser.socketId).emit('chat-message', msgData);
+      }
+    } else {
+      socket.to(currentRoom).emit('chat-message', msgData);
+    }
   });
 
   // Relay typing indicator
